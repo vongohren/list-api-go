@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Golang Simple HTML</title>
+  </head>
+  <body>
+    <h1>Success Auth</h1>
+    <div>{{.Bearer}}</div>
+  </body>
+  <script>
+    window.opener.postMessage({{.Bearer}},{{.Url}});
+    self.close()
+  </script>
+</html>
