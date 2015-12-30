@@ -24,12 +24,17 @@ func init () {
   gothic.GetProviderName = getProviderName
 }
 
+type CookieUrl struct {
+  Cookie string
+  Url string
+}
+
 func BeginAuthHandler(env *db.Env,  w http.ResponseWriter, r *http.Request) error {
   _ = "breakpoint"
   gothic.BeginAuthHandler(w, r)
   sesh, _ := gothic.Store.Get(r, gothic.SessionName)
-  fmt.Println(sesh)
-  _, err4 := re.DB("list_api").Table("auth_sessions").Insert(sesh).RunWrite(env.DBSession)
+  cookieUrl := CookieUrl{sesh.ID, r.Header.Get("Referer")}
+  _, err4 := re.DB("list_api").Table("auth_sessions").Insert(cookieUrl).RunWrite(env.DBSession)
   if err4 != nil {
       return err4
   }
@@ -78,28 +83,29 @@ func CallBack(env *db.Env, w http.ResponseWriter, r *http.Request) error {
   if err5 != nil {
       return err5
   }
+  _ = "breakpoint"
+  sessions := []CookieUrl{}
   seshz, errSesh := re.DB("list_api").Table("auth_sessions").Filter(map[string]interface{}{
-    "ID":cookie.Value,
+    "Cookie":cookie.Value,
   }).Run(env.DBSession)
 
   if errSesh != nil {
     return errSesh
   }
-  var seshArr []interface{}
-  errArr := seshz.All(&seshArr)
+  errArr := seshz.All(&sessions)
   if errArr != nil {
       return errArr
   }
-  if len(seshArr) > 0 {
+  referer := ""
+  if len(sessions) > 0 {
     //read out the url this session belongs to
     log.Printf("SeshExists")
+    referer = sessions[0].Url
   } else {
     //say something went wrong
     log.Printf("Sesh does not exist")
   }
 
-
-  referer := r.Header.Get("Referer")
   jsonToken := Token{jwtString, referer}
 
   tmpl := fmt.Sprintf("templates/successAuth.html")

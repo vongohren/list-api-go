@@ -61,7 +61,6 @@ func AddHandler(env *db.Env, token interface{}, w http.ResponseWriter, r *http.R
 func GetListHandler(env *db.Env, token interface{}, w http.ResponseWriter, r *http.Request) error {
   res, err2 := re.DB(env.DBName).Table(env.ListsTable).Filter(map[string]interface{}{"Owner":token.(string) ,}).Run(env.DBSession)
   defer res.Close()
-  _ = "breakpoint"
   // Scan query result into the person variable
   lists := []models.ShoppingList{}
   err2 = res.All(&lists)
