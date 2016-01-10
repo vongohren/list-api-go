@@ -7,69 +7,82 @@ import(
   "encoding/json"
   "github.com/Snorlock/shoppingApi/models"
   "github.com/Snorlock/shoppingApi/db"
+  "github.com/Snorlock/mux"
   re "github.com/dancannon/gorethink"
 )
 
-func AddHandler(env *db.Env, token interface{}, w http.ResponseWriter, r *http.Request) error {
-  dec := json.NewDecoder(r.Body)
+type ItemRequest struct {
+  ListId    string `json:"Id"`
+  Text      string `json:"Text"`
+}
 
-  var item models.Item
-  error2 := dec.Decode(&item)
+func AddItemHandler(env *db.Env, id interface{}, w http.ResponseWriter, r *http.Request) error {
+  //TODO Dont allow items without valid list id
+  dec := json.NewDecoder(r.Body)
+  _ = "breakpoint"
+  var request ItemRequest
+  error2 := dec.Decode(&request)
   if error2 != nil {
     fmt.Println(error2);
     return error2
   }
-  item.Added = time.Now()
-  item.Accuired = false
-  items := []models.Item{}
-  items = append(items,item)
-  list := models.ShoppingList{"",items, token.(string)}
-  _ = "breakpoint"
-  res, err2 := re.DB(env.DBName).Table(env.ListsTable).Filter(map[string]interface{}{"Owner":token.(string) ,}).Run(env.DBSession)
-  defer res.Close()
+  item := models.Item{"", request.Text, "false", time.Now()}
 
-  // Scan query result into the person variable
-  lists := []models.ShoppingList{}
-  err2 = res.All(&lists)
-  if err2 != nil {
-      fmt.Printf("Error scanning database result: %s", err2)
-      return err2
+  itemResp, err := re.DB(env.DBName).Table(env.ItemsTable).Insert(item).RunWrite(env.DBSession)
+  if err != nil {
+    return err
   }
-
-  if len(lists) > 0 {
-    existingItems := lists[0].Items
-    existingItems = append(existingItems, item)
-    _, err3 := re.DB(env.DBName).Table(env.ListsTable).Get(lists[0].Id).Update(map[string]interface{}{"Items":existingItems}).Run(env.DBSession)
-    if err3 != nil {
-      fmt.Println(err3);
-      http.Error(w, err3.Error(), http.StatusInternalServerError)
-      fmt.Fprint(w, "ERRORR!\n")
-    }
-  } else {
-    _, err := re.DB(env.DBName).Table(env.ListsTable).Insert(list).RunWrite(env.DBSession)
-    if err != nil {
-      fmt.Println(err);
-      http.Error(w, err.Error(), http.StatusInternalServerError)
-      fmt.Fprint(w, "ERRORR!\n")
-    }
-  }
-
-
+  itemId := itemResp.GeneratedKeys[0]
+  _, err3 := re.DB(env.DBName).Table(env.ListsTable).Get(request.ListId).Update(map[string]interface{}{"Items":re.Row.Field("Items").Append(itemId), "Update":time.Now()}).Run(env.DBSession)
+  fmt.Println(itemId)
+  fmt.Println(err3)
   return nil
 }
 
-func GetListHandler(env *db.Env, token interface{}, w http.ResponseWriter, r *http.Request) error {
-  res, err2 := re.DB(env.DBName).Table(env.ListsTable).Filter(map[string]interface{}{"Owner":token.(string) ,}).Run(env.DBSession)
+type ListRequest struct {
+  Title      string `json:"Title"`
+}
+
+func AddListHandler(env *db.Env, id interface{}, w http.ResponseWriter, r *http.Request) error {
+  dec := json.NewDecoder(r.Body)
+  var request ListRequest
+  error2 := dec.Decode(&request)
+  if error2 != nil {
+    fmt.Println(error2);
+    return error2
+  }
+  _ = "breakpoint"
+  email, _ := id.(string)
+  owners := []string{email}
+  list := models.List{"", []string{}, owners, request.Title, time.Now(),}
+  insertedList, err := re.DB(env.DBName).Table(env.ListsTable).Insert(list).RunWrite(env.DBSession)
+  if err != nil {
+    return err
+  }
+  list.Id = insertedList.GeneratedKeys[0]
+  js, err := json.Marshal(list)
+  if err != nil {
+    return err
+  }
+  w.Header().Set("Content-Type", "application/json")
+  w.Write(js)
+  return nil
+}
+
+func GetListsHandler(env *db.Env, id interface{}, w http.ResponseWriter, r *http.Request) error {
+  email, _ := id.(string)
+  res, err2 := re.DB(env.DBName).Table(env.ListsTable).GetAllByIndex("Owners",email).OrderBy(re.Desc("Updated")).Run(env.DBSession)
   defer res.Close()
+  _ = "breakpoint"
   // Scan query result into the person variable
-  lists := []models.ShoppingList{}
+  lists := []models.List{}
   err2 = res.All(&lists)
   if err2 != nil {
       fmt.Printf("Error scanning database result: %s", err2)
       return err2
   }
   if len(lists) > 0 {
-    js, err := json.Marshal(lists[0])
+    js, err := json.Marshal(lists)
     if err != nil {
       return err
     }
@@ -81,5 +94,29 @@ func GetListHandler(env *db.Env, token interface{}, w http.ResponseWriter, r *ht
   w.Header().Set("Content-Type", "text/plain; charset=utf-8")
   w.WriteHeader(http.StatusNoContent)
 
+  return nil
+}
+
+func GetListDetailHandler(env *db.Env, id interface{}, w http.ResponseWriter, r *http.Request) error {
+  params := mux.Vars(r)
+  id = params["id"]
+  res, err2 := re.DB(env.DBName).Table(env.ListsTable).Get(id).Run(env.DBSession)
+  defer res.Close()
+  _ = "breakpoint"
+  // Scan query result into the person variable
+  list := models.List{}
+  err2 = res.One(&list)
+  if err2 != nil {
+      fmt.Printf("Error scanning database result: %s", err2)
+      return err2
+  }
+
+  js, err := json.Marshal(list)
+  if err != nil {
+    return err
+  }
+
+  w.Header().Set("Content-Type", "application/json")
+  w.Write(js)
   return nil
 }

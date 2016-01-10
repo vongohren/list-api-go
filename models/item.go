@@ -5,7 +5,8 @@ import(
 )
 
 type Item struct {
-	Item      string `json:"Item"`
-	Accuired  bool `json:"Accuired,omitempty"`
+  Id        string `gorethink:"id,omitempty"`
+	Text      string `json:"Text"`
+	Done      string `json:"Done,omitempty"`
 	Added     time.Time
 }

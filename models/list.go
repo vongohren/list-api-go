@@ -1,13 +1,13 @@
 package models
 
-type ShoppingList struct {
-  Id      string `gorethink:"id,omitempty"`
-	Items   []Item
-  Owner   string `json:"Owner" binding:"required"`
-}
+import(
+  "time"
+)
 
-func NewShoppingList() *ShoppingList {
-	return &ShoppingList{
-		Items: make([]Item, 0),
-	}
+type List struct {
+  Id      string `gorethink:"id,omitempty"`
+	Items   []string
+  Owners   []string `json:"Owners" binding:"required"`
+  Titel   string `json:"Title" binding:"required"`
+  Updated time.Time
 }

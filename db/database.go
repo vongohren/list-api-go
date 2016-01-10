@@ -11,16 +11,18 @@ import (
 type Env struct {
     DBSession   *re.Session
 		DBName 			string
-		UserTable 	string
+		UsersTable 	string
 		ListsTable 	string
+		ItemsTable 	string
 		ListKey			string
 }
 
 var (
 	DBName string = "list_api"
-	UserTable string = "users"
+	UsersTable string = "users"
 	ListsTable string = "lists"
-	ListKey string = "Owner"
+	ItemsTable string = "items"
+	ListKey string = "Owners"
 	session *re.Session
 )
 
@@ -43,23 +45,32 @@ func StartDatabase() *Env{
 	if error != nil {
 		fmt.Println("DB creation either failed or DB exists already")
 	}
-	_, errz := re.DB(dbName).Table("users").Run(session)
+	_, errz := re.DB(dbName).Table(UsersTable).Run(session)
 	if errz != nil {
 		fmt.Println("TABLE USERS DOES NOT EXIST, creating");
-		re.DB(dbName).TableCreate("users").RunWrite(session)
+		re.DB(dbName).TableCreate(UsersTable).RunWrite(session)
 	}
-	_, errz2 := re.DB(dbName).Table("lists").Run(session)
+	_, errz2 := re.DB(dbName).Table(ListsTable).Run(session)
 	if errz2 != nil {
-		fmt.Println("TABLE ITEMS DOES NOT EXIST, creating");
-		re.DB(dbName).TableCreate("lists").RunWrite(session)
+		fmt.Println("TABLE LISTS DOES NOT EXIST, creating");
+		re.DB(dbName).TableCreate(ListsTable).RunWrite(session)
+		re.DB(dbName).Table(ListsTable).IndexCreate("Owners",re.IndexCreateOpts{Multi:true}).RunWrite(session)
 	}
+
+	_, errz3 := re.DB(dbName).Table(ItemsTable).Run(session)
+	if errz3 != nil {
+		fmt.Println("TABLE ITEMS DOES NOT EXIST, creating");
+		re.DB(dbName).TableCreate(ItemsTable).RunWrite(session)
+	}
+
 	log.Printf("Database created : %d, with name: %s", resp.DBsCreated, dbName)
 
   env := &Env{
     DBSession: session,
 		DBName: DBName,
-		UserTable: UserTable,
+		UsersTable: UsersTable,
 		ListsTable: ListsTable,
+		ItemsTable: ItemsTable,
 
   }
   return env;

@@ -32,11 +32,17 @@ func (se StatusError) Status() int {
 // our useful signature.
 
 func (h TokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+  _ = "breakpoint"
   var i HandlerMethods
   i = h
-  token, failed := checkAuthorization(i, w, r)
+  handleCors(w, r)
+  // Stop here if its Preflighted OPTIONS request
+  if r.Method == "OPTIONS" {
+      return
+  }
+  id, failed := checkAuthorization(i, w, r)
   if !failed {
-    err := h.HandleWithToken(h.Env, token, w, r)
+    err := h.HandleWithToken(h.Env, id, w, r)
     if err != nil {
       handleError(err, w)
     }
@@ -75,5 +81,15 @@ func handleError(err interface{}, w http.ResponseWriter) {
       log.Printf("Default handler for error %s", e)
       http.Error(w, http.StatusText(http.StatusInternalServerError),
           http.StatusInternalServerError)
+  }
+}
+
+func handleCors(w http.ResponseWriter, r *http.Request) {
+  if origin := r.Header.Get("Origin"); origin != "" {
+      w.Header().Set("Access-Control-Allow-Origin", origin)
+      w.Header().Set("Access-Control-Allow-Credentials", "true")
+      w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+      w.Header().Set("Access-Control-Allow-Headers",
+          "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
   }
 }

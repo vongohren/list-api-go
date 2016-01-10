@@ -4,6 +4,7 @@ import (
   "log"
   "fmt"
   "os"
+  "os/exec"
   "errors"
   "net/http"
   "time"
@@ -30,9 +31,18 @@ type CookieUrl struct {
 }
 
 func BeginAuthHandler(env *db.Env,  w http.ResponseWriter, r *http.Request) error {
-  _ = "breakpoint"
   gothic.BeginAuthHandler(w, r)
-  sesh, _ := gothic.Store.Get(r, gothic.SessionName)
+  _ = "breakpoint"
+  out, err := exec.Command("uuidgen").Output()
+  if err != nil {
+      log.Fatal(err)
+  }
+  sesh, erhor := gothic.Store.Get(r, gothic.SessionName)
+  fmt.Println(erhor)
+  sesh.Values["referer"] = r.Header.Get("Referer")
+  sesh.Values["uuid"] = out
+  ertor := sesh.Save(r,w)
+  fmt.Println(ertor)
   cookieUrl := CookieUrl{sesh.ID, r.Header.Get("Referer")}
   _, err4 := re.DB("list_api").Table("auth_sessions").Insert(cookieUrl).RunWrite(env.DBSession)
   if err4 != nil {
@@ -45,10 +55,8 @@ func BeginAuthHandler(env *db.Env,  w http.ResponseWriter, r *http.Request) erro
 func CallBack(env *db.Env, w http.ResponseWriter, r *http.Request) error {
 	// print our state string to the console. Ideally, you should verify
 	// that it's the same string as the one you set in `setState`
-  _ = "breakpoint"
   cookie, _ := r.Cookie(gothic.SessionName)
   fmt.Println(cookie)
-
 	user, err := gothic.CompleteUserAuth(w, r)
 	if err != nil {
 		return err
@@ -75,7 +83,7 @@ func CallBack(env *db.Env, w http.ResponseWriter, r *http.Request) error {
   }
 
   token := jwt.New(jwt.SigningMethodHS256)
-  token.Claims["id"] = user.UserID
+  token.Claims["id"] = user.Email
   token.Claims["iat"] = time.Now().Unix()
   token.Claims["exp"] = time.Now().Add(time.Second * 3600 * 24).Unix()
   jwtString, err5 := token.SignedString([]byte("mysupersecretkey"))
@@ -83,7 +91,6 @@ func CallBack(env *db.Env, w http.ResponseWriter, r *http.Request) error {
   if err5 != nil {
       return err5
   }
-  _ = "breakpoint"
   sessions := []CookieUrl{}
   seshz, errSesh := re.DB("list_api").Table("auth_sessions").Filter(map[string]interface{}{
     "Cookie":cookie.Value,
@@ -105,7 +112,10 @@ func CallBack(env *db.Env, w http.ResponseWriter, r *http.Request) error {
     //say something went wrong
     log.Printf("Sesh does not exist")
   }
-
+  _ = "breakpoint"
+  sesh, erhor := gothic.Store.Get(r, gothic.SessionName)
+  fmt.Println(erhor)
+  referer = sesh.Values["referer"].(string)
   jsonToken := Token{jwtString, referer}
 
   tmpl := fmt.Sprintf("templates/successAuth.html")
