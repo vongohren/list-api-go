@@ -4,7 +4,7 @@ import (
   "log"
   "fmt"
   "os"
-  "os/exec"
+  "strings"
   "errors"
   "net/http"
   "time"
@@ -32,18 +32,16 @@ type CookieUrl struct {
 
 func BeginAuthHandler(env *db.Env,  w http.ResponseWriter, r *http.Request) error {
   gothic.BeginAuthHandler(w, r)
+  name := gothic.SessionName
+  fmt.Println(name)
   _ = "breakpoint"
-  out, err := exec.Command("uuidgen").Output()
-  if err != nil {
-      log.Fatal(err)
-  }
   sesh, erhor := gothic.Store.Get(r, gothic.SessionName)
   fmt.Println(erhor)
-  sesh.Values["referer"] = r.Header.Get("Referer")
-  sesh.Values["uuid"] = out
   ertor := sesh.Save(r,w)
   fmt.Println(ertor)
-  cookieUrl := CookieUrl{sesh.ID, r.Header.Get("Referer")}
+  cookie := w.Header().Get("Set-Cookie")
+  cookie = strings.TrimPrefix(strings.Split(cookie, ";")[0], fmt.Sprintf("%s=", gothic.SessionName))
+  cookieUrl := CookieUrl{cookie, r.Header.Get("Referer")}
   _, err4 := re.DB("list_api").Table("auth_sessions").Insert(cookieUrl).RunWrite(env.DBSession)
   if err4 != nil {
       return err4
@@ -112,10 +110,7 @@ func CallBack(env *db.Env, w http.ResponseWriter, r *http.Request) error {
     //say something went wrong
     log.Printf("Sesh does not exist")
   }
-  _ = "breakpoint"
-  sesh, erhor := gothic.Store.Get(r, gothic.SessionName)
-  fmt.Println(erhor)
-  referer = sesh.Values["referer"].(string)
+
   jsonToken := Token{jwtString, referer}
 
   tmpl := fmt.Sprintf("templates/successAuth.html")

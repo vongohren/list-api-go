@@ -73,7 +73,6 @@ func GetListsHandler(env *db.Env, id interface{}, w http.ResponseWriter, r *http
   email, _ := id.(string)
   res, err2 := re.DB(env.DBName).Table(env.ListsTable).GetAllByIndex("Owners",email).OrderBy(re.Desc("Updated")).Run(env.DBSession)
   defer res.Close()
-  _ = "breakpoint"
   // Scan query result into the person variable
   lists := []models.List{}
   err2 = res.All(&lists)
@@ -110,8 +109,24 @@ func GetListDetailHandler(env *db.Env, id interface{}, w http.ResponseWriter, r 
       fmt.Printf("Error scanning database result: %s", err2)
       return err2
   }
+  detailedList := models.DetailedList{list.Id, []models.Item{}, list.Owners, list.Title, list.Updated,}
+  b := make([]interface{}, len(list.Items))
+  for i := range list.Items {
+      b[i] = list.Items[i]
+  }
+  itemsRes, err := re.DB(env.DBName).Table(env.ItemsTable).GetAll(b...).OrderBy(re.Desc("Updated")).Run(env.DBSession)
+  if err !=nil {
+    return err
+  }
+  items := []models.Item{}
+  defer itemsRes.Close()
+  err = itemsRes.All(&items)
+  if err !=nil {
+    return err
+  }
+  detailedList.Items = items
 
-  js, err := json.Marshal(list)
+  js, err := json.Marshal(detailedList)
   if err != nil {
     return err
   }
