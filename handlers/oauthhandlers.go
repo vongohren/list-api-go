@@ -32,6 +32,7 @@ type CookieUrl struct {
 
 func BeginAuthHandler(env *db.Env,  w http.ResponseWriter, r *http.Request) error {
   gothic.BeginAuthHandler(w, r)
+  url := r.URL.Query().Get("url")
   name := gothic.SessionName
   fmt.Println(name)
   _ = "breakpoint"
@@ -41,8 +42,12 @@ func BeginAuthHandler(env *db.Env,  w http.ResponseWriter, r *http.Request) erro
   fmt.Println(ertor)
   cookie := w.Header().Get("Set-Cookie")
   cookie = strings.TrimPrefix(strings.Split(cookie, ";")[0], fmt.Sprintf("%s=", gothic.SessionName))
-  cookieUrl := CookieUrl{cookie, r.Header.Get("Referer")}
-  _, err4 := re.DB("list_api").Table("auth_sessions").Insert(cookieUrl).RunWrite(env.DBSession)
+  if url == "" {
+    fmt.Println("no url in query, fallback to refere")
+    url = r.Header.Get("Referer")
+  }
+  cookieUrl := CookieUrl{cookie, url}
+  _, err4 := re.DB("list_api").Table(env.AuthSessionTable).Insert(cookieUrl).RunWrite(env.DBSession)
   if err4 != nil {
       return err4
   }
@@ -90,7 +95,7 @@ func CallBack(env *db.Env, w http.ResponseWriter, r *http.Request) error {
       return err5
   }
   sessions := []CookieUrl{}
-  seshz, errSesh := re.DB("list_api").Table("auth_sessions").Filter(map[string]interface{}{
+  seshz, errSesh := re.DB("list_api").Table(env.AuthSessionTable).Filter(map[string]interface{}{
     "Cookie":cookie.Value,
   }).Run(env.DBSession)
 

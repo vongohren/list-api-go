@@ -15,6 +15,7 @@ type Env struct {
 		ListsTable 	string
 		ItemsTable 	string
 		ListKey			string
+		AuthSessionTable string
 }
 
 var (
@@ -22,6 +23,7 @@ var (
 	UsersTable string = "users"
 	ListsTable string = "lists"
 	ItemsTable string = "items"
+	AuthSessionTable string = "auth_sessions"
 	ListKey string = "Owners"
 	session *re.Session
 )
@@ -50,6 +52,7 @@ func StartDatabase() *Env{
 		fmt.Println("TABLE USERS DOES NOT EXIST, creating");
 		re.DB(dbName).TableCreate(UsersTable).RunWrite(session)
 	}
+
 	_, errz2 := re.DB(dbName).Table(ListsTable).Run(session)
 	if errz2 != nil {
 		fmt.Println("TABLE LISTS DOES NOT EXIST, creating");
@@ -63,6 +66,12 @@ func StartDatabase() *Env{
 		re.DB(dbName).TableCreate(ItemsTable).RunWrite(session)
 	}
 
+	_, errz4 := re.DB(dbName).Table(AuthSessionTable).Run(session)
+	if errz4 != nil {
+		fmt.Println("TABLE AUTH_SESSIONS DOES NOT EXIST, creating");
+		re.DB(dbName).TableCreate(AuthSessionTable).RunWrite(session)
+	}
+
 	log.Printf("Database created : %d, with name: %s", resp.DBsCreated, dbName)
 
   env := &Env{
@@ -71,7 +80,7 @@ func StartDatabase() *Env{
 		UsersTable: UsersTable,
 		ListsTable: ListsTable,
 		ItemsTable: ItemsTable,
-
+		AuthSessionTable: AuthSessionTable,
   }
   return env;
 }
