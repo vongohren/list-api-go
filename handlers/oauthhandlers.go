@@ -13,6 +13,7 @@ import (
 	"github.com/markbates/goth/providers/facebook"
   "github.com/Snorlock/shoppingApi/db"
   "github.com/Snorlock/mux"
+  "github.com/pborman/uuid"
   "html/template"
   re "github.com/dancannon/gorethink"
   jwt "github.com/dgrijalva/jwt-go"
@@ -25,41 +26,35 @@ func init () {
   gothic.GetProviderName = getProviderName
 }
 
-type CookieUrl struct {
-  Cookie string
+type Identifier struct {
+  UUID string
   Url string
 }
 
 func BeginAuthHandler(env *db.Env,  w http.ResponseWriter, r *http.Request) error {
-  gothic.BeginAuthHandler(w, r)
-  url := r.URL.Query().Get("url")
-  name := gothic.SessionName
-  fmt.Println(name)
-  _ = "breakpoint"
-  sesh, erhor := gothic.Store.Get(r, gothic.SessionName)
-  fmt.Println(erhor)
-  ertor := sesh.Save(r,w)
-  fmt.Println(ertor)
-  cookie := w.Header().Get("Set-Cookie")
-  cookie = strings.TrimPrefix(strings.Split(cookie, ";")[0], fmt.Sprintf("%s=", gothic.SessionName))
-  if url == "" {
-    fmt.Println("no url in query, fallback to refere")
-    url = r.Header.Get("Referer")
+  gothic.SetState = func(req *http.Request) string {
+    _ = "breakpoint"
+    state := r.Header.Get("state")
+	  return state
   }
-  cookieUrl := CookieUrl{cookie, url}
-  _, err4 := re.DB("list_api").Table(env.AuthSessionTable).Insert(cookieUrl).RunWrite(env.DBSession)
+  url := r.URL.Query().Get("url")
+  uuid := uuid.New();
+
+  r.Header.Set("state", fmt.Sprintf("%s!%s", url, uuid))
+  gothic.BeginAuthHandler(w, r)
+
+  identifier := Identifier{uuid, url}
+  _, err4 := re.DB("list_api").Table(env.AuthSessionTable).Insert(identifier).RunWrite(env.DBSession)
   if err4 != nil {
       return err4
   }
-  log.Printf(gothic.GetState(r))
   return nil;
 }
 
 func CallBack(env *db.Env, w http.ResponseWriter, r *http.Request) error {
 	// print our state string to the console. Ideally, you should verify
 	// that it's the same string as the one you set in `setState`
-  cookie, _ := r.Cookie(gothic.SessionName)
-  fmt.Println(cookie)
+  _ = "breakpoint"
 	user, err := gothic.CompleteUserAuth(w, r)
 	if err != nil {
 		return err
@@ -90,13 +85,15 @@ func CallBack(env *db.Env, w http.ResponseWriter, r *http.Request) error {
   token.Claims["iat"] = time.Now().Unix()
   token.Claims["exp"] = time.Now().Add(time.Second * 3600 * 24).Unix()
   jwtString, err5 := token.SignedString([]byte("mysupersecretkey"))
-  log.Printf(jwtString)
   if err5 != nil {
       return err5
   }
-  sessions := []CookieUrl{}
+
+  state := gothic.GetState(r)
+  uuid := strings.Split(state, "!")[1]
+  sessions := []Identifier{}
   seshz, errSesh := re.DB("list_api").Table(env.AuthSessionTable).Filter(map[string]interface{}{
-    "Cookie":cookie.Value,
+    "UUID":uuid,
   }).Run(env.DBSession)
 
   if errSesh != nil {
