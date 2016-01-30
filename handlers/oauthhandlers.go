@@ -114,8 +114,9 @@ func CallBack(env *db.Env, w http.ResponseWriter, r *http.Request) error {
   }
 
   jsonToken := Token{jwtString, referer}
-
-  tmpl := fmt.Sprintf("templates/successAuth.html")
+  pwd, _ := os.Getwd()
+  fmt.Println(pwd)
+  tmpl := fmt.Sprintf("%s/templates/successAuth.html", pwd)
   t, err := template.ParseFiles(tmpl)
   if err != nil {
       log.Print("template parsing error: ", err)
