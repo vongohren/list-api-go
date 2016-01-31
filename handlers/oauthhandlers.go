@@ -14,7 +14,7 @@ import (
   "github.com/Snorlock/shoppingApi/db"
   "github.com/Snorlock/mux"
   "github.com/pborman/uuid"
-  "html/template"
+  "text/template"
   re "github.com/dancannon/gorethink"
   jwt "github.com/dgrijalva/jwt-go"
 )
@@ -116,12 +116,8 @@ func CallBack(env *db.Env, w http.ResponseWriter, r *http.Request) error {
   jsonToken := Token{jwtString, referer}
   pwd, _ := os.Getwd()
   fmt.Println(pwd)
-  tmpl := fmt.Sprintf("%s/templates/successAuth.html", pwd)
-  t, err := template.ParseFiles(tmpl)
-  if err != nil {
-      log.Print("template parsing error: ", err)
-  }
-  err = t.Execute(w, jsonToken)
+  tmpl := getHtmlReponse()
+  err = tmpl.Execute(w, jsonToken)
   if err != nil {
       log.Print("template executing error: ", err)
   }
@@ -144,4 +140,24 @@ func getProviderName(req *http.Request) (string, error) {
 		return provider, errors.New("you must select a provider")
 	}
 	return provider, nil
+}
+
+func getHtmlReponse() *template.Template {
+  return template.Must(template.New("html").Parse(`
+    <!DOCTYPE html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <title>Golang Simple HTML</title>
+      </head>
+      <body>
+        <h1>Success Auth</h1>
+        <div>{{.Bearer}}</div>
+      </body>
+      <script>
+        window.opener.postMessage({{.Bearer}},{{.Url}});
+        self.close()
+      </script>
+    </html>
+    `))
 }
