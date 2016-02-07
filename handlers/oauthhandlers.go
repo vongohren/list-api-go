@@ -155,7 +155,7 @@ func getHtmlReponse() *template.Template {
         <div>{{.Bearer}}</div>
       </body>
       <script>
-        window.opener.postMessage({{.Bearer}},{{.Url}});
+        window.opener.postMessage("{{.Bearer}}","{{.Url}}");
         self.close()
       </script>
     </html>
