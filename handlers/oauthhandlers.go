@@ -21,7 +21,7 @@ import (
 
 func init () {
   goth.UseProviders(
-    facebook.New(os.Getenv("FACEBOOK_SECRET"), os.Getenv("FACEBOOK_APP_SECRET"), fmt.Sprintf("http://%s/auth/facebook/callback", os.Getenv("DNS_HOSTNAME"))),
+    facebook.New(os.Getenv("FACEBOOK_APP_ID"), os.Getenv("FACEBOOK_SECRET"), fmt.Sprintf("http://%s/auth/facebook/callback", os.Getenv("DNS_HOSTNAME"))),
   )
   gothic.GetProviderName = getProviderName
 }
